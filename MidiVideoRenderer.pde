@@ -65,21 +65,27 @@ void setup() {
   
   loadMidiInfo();
   loadVideo();
+  renderImages();
+  
+  noLoop(); // only draw once
 }
 
 void draw() {
-  int m = millis();
-  if(m-lastFrame>2000)
-  {
-    if (myMovie.available()) {
-      int nextFrame = m/1000;
-      myMovie.jump(nextFrame);
-      myMovie.read();
-    }
-    image(myMovie, 0, 0);
-    
-    lastFrame = m;  
-  }
+  
+  background(255);
+  
+//  int m = millis();
+//  if(m-lastFrame>2000)
+//  {
+//    if (myMovie.available()) {
+//      int nextFrame = m/1000;
+//      myMovie.jump(nextFrame);
+//      myMovie.read();
+//    }
+//    image(myMovie, 0, 0);
+//    
+//    lastFrame = m;  
+//  }
   
 }
 
@@ -172,3 +178,36 @@ void loadSteps() {
         
     }
 }
+
+void renderImages() {
+  
+  for(int i=0; i<Steps.size();i++)
+  {
+    while (!myMovie.available()) {
+    }
+    Step step =(Step) Steps.get(i); 
+    float nextFrame = step.m_fTime;
+    myMovie.jump(nextFrame);
+    myMovie.read();
+    PImage newImage = (PImage) myMovie;
+    newImage.save("p_steps_"+ nextFrame +".jpg");
+    println("Step = " + step.m_sNote + ", time = " + nextFrame);
+    
+    //saveFile(i++,newImage);
+  }
+  
+}
+
+// export filenames w/leading zeros
+void saveFile(int i, PImage image) {
+  String istr = i+"";
+  if (i < 10) { istr = "00000" + i; }
+  else if (i < 100) { istr = "0000" + i; }
+  else if (i < 1000) { istr = "000" + i; }
+  else if (i < 10000) { istr = "00" + i; }
+  else if (i < 100000) { istr = "0" + i; }
+  
+  image.save("p_steps_"+ istr +".jpg");
+  //save("p_"+ istr +".jpg");
+}
+
