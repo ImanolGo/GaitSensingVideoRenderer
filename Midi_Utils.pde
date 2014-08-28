@@ -1,4 +1,18 @@
 
+import arb.soundcipher.*;
+
+import javax.sound.midi.Sequencer;
+import javax.sound.midi.MidiDevice;
+import javax.sound.midi.MidiSystem;
+import javax.sound.midi.MidiEvent;
+import javax.sound.midi.MidiMessage;
+import javax.sound.midi.MidiUnavailableException;
+import javax.sound.midi.InvalidMidiDataException;
+import java.io.IOException;
+import javax.sound.midi.Sequence;
+import javax.sound.midi.Track;
+import javax.sound.midi.ShortMessage;
+
 MidiSystem midiSystem;
 Sequencer midiSequencer;
 
@@ -28,11 +42,11 @@ float getMidiDuration(String fileName)
 {
   
   String sketchPath = this.sketchPath;
-  println(sketchPath);
+  //println(sketchPath);
   
   //File midiFile = new File(sketchPath + "/" + fileName);
   File midiFile = new File(fileName);
-  println(midiFile.getAbsolutePath());
+  //println(midiFile.getAbsolutePath());
   
   if(!midiFile.exists() || midiFile.isDirectory() || !midiFile.canRead())
   {
@@ -66,11 +80,11 @@ ArrayList loadMidi(String fileName, float fBPM)
 {
   
   String sketchPath = this.sketchPath;
-  println(sketchPath);
+  //println(sketchPath);
   
   //File midiFile = new File(sketchPath + "/" + fileName);
   File midiFile = new File(fileName);
-  println(midiFile.getAbsolutePath());
+  //println(midiFile.getAbsolutePath());
   
   if(!midiFile.exists() || midiFile.isDirectory() || !midiFile.canRead())
   {

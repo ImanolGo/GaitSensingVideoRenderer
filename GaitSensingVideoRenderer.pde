@@ -1,27 +1,13 @@
 
 
 /**
-  * MIDI Video Renderer
-  * 
-  * by Imanol Gómez 
+  * Gait Sensing Video Renderer
+  *    Berlin 27/08/14
+  *    by Imanol Gómez 
   *    www.imanolgomez.net
   * 
   * 
 */
-
-import arb.soundcipher.*;
-
-import javax.sound.midi.Sequencer;
-import javax.sound.midi.MidiDevice;
-import javax.sound.midi.MidiSystem;
-import javax.sound.midi.MidiEvent;
-import javax.sound.midi.MidiMessage;
-import javax.sound.midi.MidiUnavailableException;
-import javax.sound.midi.InvalidMidiDataException;
-import java.io.IOException;
-import javax.sound.midi.Sequence;
-import javax.sound.midi.Track;
-import javax.sound.midi.ShortMessage;
 
 import javax.swing.*; 
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -31,12 +17,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-
-
 import processing.video.*;
 Movie myMovie;
 int lastFrame = 0;
-int fps = 10;
+int fps = 5;
+PrintWriter createVideoScript;
 
 ArrayList Notes_;
 ArrayList Steps;
@@ -46,8 +31,6 @@ float tempo = 60;
 int spm = 60; //seconds per minute
 ArrayList m_Durations = new ArrayList();
 ArrayList lines = new ArrayList();
-String absolutePath;
-String fileName;
 
 //name of the file
 
@@ -60,19 +43,22 @@ class Step
 
 
 void setup() {
-  size(1920, 1080);
+  size(400, 400);
   frameRate(fps);
   
+  startBashScript();
   loadMidiInfo();
   loadVideo();
-  renderImages();
+  //renderImages();
   
-  noLoop(); // only draw once
+  //noLoop(); // only draw once
 }
 
 void draw() {
   
-  background(255);
+  //background(255);
+  
+  image(myMovie, 0, 0);
   
 //  int m = millis();
 //  if(m-lastFrame>2000)
@@ -89,42 +75,73 @@ void draw() {
   
 }
 
+void startBashScript(){
+  // Create a new file in the sketch directory
+    createVideoScript = createWriter("createVideo.sh"); 
+    createVideoScript.println("#!/bin/bash");  // Start the Bourne shell
+    createVideoScript.print("\n");  // break code
+    createVideoScript.println("echo Starting video creation script...");  // Echo starting script
+}
+
 void loadMidiInfo() {
-    println("Load Info");
+    println("Load Midi Info");
     loadNotes();
     loadSteps();
 }
 
 void loadVideo() {
    
-    Notes_ = new ArrayList();  // Create an empty ArrayList
-    String videoName = "video.MP4"; 
-    String path = dataPath("") + "/" + videoName;
+    java.io.File folder = new java.io.File(dataPath(""));             
+    java.io.FilenameFilter mp4Filter = new java.io.FilenameFilter() {  
+      public boolean accept(File dir, String name) {
+        return name.toLowerCase().endsWith(".mp4");
+      }
+    };
+  
+    String[] filenames = folder.list(mp4Filter);
+    println("Videos inside the data folder: ");
+    println(filenames);
     
-    println(path); 
-    myMovie = new Movie(this, path);
-    myMovie.play();
-    
-    println("Video Duration: "+ myMovie.duration() + "s");
+    if(filenames.length>0){
+        String videoName = filenames[0];
+        String path = dataPath("") + "/" + videoName;
+        println("Loading " + videoName + "....");
+        myMovie = new Movie(this, path);   
+        myMovie.play();
+        println("Video Duration: "+ myMovie.duration() + "s"); 
+    }
+    else{
+      println("Data folder has no mp4 format videos ");
+    }
+  
 }
 
 
 void loadNotes() {
    
-    Notes_ = new ArrayList();  // Create an empty ArrayList
-    String midiFileName = "steps.mid"; 
-    String path = dataPath("") + "/" + midiFileName;
+    java.io.File folder = new java.io.File(dataPath(""));             
+    java.io.FilenameFilter midiFilter = new java.io.FilenameFilter() {  
+      public boolean accept(File dir, String name) {
+        return name.toLowerCase().endsWith(".mid");
+      }
+    };
+  
+    String[] filenames = folder.list(midiFilter);
+    println("Midi files inside the data folder: ");
+    println(filenames);
     
-    println(path); 
-    
-    if (midiFileName.endsWith("mid")) { 
+    if(filenames.length>0){
+      Notes_ = new ArrayList();  // Create an empty ArrayList
+      String midiFileName = filenames[0]; 
+      String path = dataPath("") + "/" + midiFileName;
+      println("Loading " + midiFileName + "...."); 
       Notes_ = loadMidi(path ,tempo);
       MidiDuration = getMidiDuration(path);
       println("MidiDuration: "+ MidiDuration + "s");
-    } else { 
-      // just print the contents to the console 
-      println("Not opened a midi file."); 
+    }else { 
+      println("Data folder has no midi format files ");
     } 
+      
 }
 
 void loadSteps() {
@@ -190,8 +207,12 @@ void renderImages() {
     myMovie.jump(nextFrame);
     myMovie.read();
     PImage newImage = (PImage) myMovie;
-    newImage.save("p_steps_"+ nextFrame +".jpg");
+    newImage.save("data/images/p_steps_"+ nextFrame +".jpg");
     println("Step = " + step.m_sNote + ", time = " + nextFrame);
+    
+    if(i +1 < Steps.size()){
+      Step nextStep =(Step) Steps.get(i+1); 
+    }
     
     //saveFile(i++,newImage);
   }
@@ -211,3 +232,22 @@ void saveFile(int i, PImage image) {
   //save("p_"+ istr +".jpg");
 }
 
+// Called every time a new frame is available to read
+void movieEvent(Movie m) {
+  m.read();
+}
+
+void stop() { //it is called whenever a sketch is closed. 
+   createVideoScript.flush(); // Writes the remaining data to the file
+   createVideoScript.close(); // Finishes the file
+   println("App stopped");
+} 
+
+void keyPressed() {
+  if (key == ESC) {
+    createVideoScript.flush(); // Writes the remaining data to the file
+    createVideoScript.close(); // Finishes the file
+    println("App exit");
+    exit(); // Stops the program
+  }
+}
