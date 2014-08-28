@@ -32,6 +32,8 @@ int spm = 60; //seconds per minute
 ArrayList m_Durations = new ArrayList();
 ArrayList lines = new ArrayList();
 
+String InputVideoName;
+
 //name of the file
 
 class Step
@@ -49,9 +51,8 @@ void setup() {
   startBashScript();
   loadMidiInfo();
   createVideo();
-  
-  //renderImages();
-  
+  saveFramesToImages();
+ 
   //noLoop(); // only draw once
 }
 
@@ -60,20 +61,6 @@ void draw() {
   //background(255);
   
   image(myMovie, 0, 0);
-  
-//  int m = millis();
-//  if(m-lastFrame>2000)
-//  {
-//    if (myMovie.available()) {
-//      int nextFrame = m/1000;
-//      myMovie.jump(nextFrame);
-//      myMovie.read();
-//    }
-//    image(myMovie, 0, 0);
-//    
-//    lastFrame = m;  
-//  }
-  
 }
 
 void startBashScript(){
@@ -104,11 +91,13 @@ void createVideo() {
     println(filenames);
     
     if(filenames.length>0){
-        String videoName = filenames[0];
-        String path = dataPath("") + "/" + videoName;
-        println("Loading " + videoName + "....");
+        InputVideoName = filenames[0];
+        String path = dataPath("") + "/" + InputVideoName;
+        println("Loading " + InputVideoName + "....");
         myMovie = new Movie(this, path);   
         myMovie.play();
+        myMovie.pause();
+        myMovie.read();
         println("Video Duration: "+ myMovie.duration() + "s");
         createScriptBlankVideo();
     }
@@ -197,18 +186,28 @@ void loadSteps() {
     }
 }
 
-void renderImages() {
+void saveFramesToImages() {
   
-  for(int i=0; i<Steps.size();i++)
-  {
-    while (!myMovie.available()) {
-    }
+  println("Save frames to images... ");
+  
+  createVideoScript.print("\n");  // break code
+  createVideoScript.println("echo Creating images from frames ...");  // Echo images from frames 
+  createVideoScript.println("cd " + dataPath(""));  // create output folder
+  createVideoScript.println("mkdir images");
+  
+  //for(int i=0; i<Steps.size();i++)
+  for(int i=0; i<10;i++)
+  { 
     Step step =(Step) Steps.get(i); 
     float nextFrame = step.m_fTime;
-    myMovie.jump(nextFrame);
-    myMovie.read();
-    PImage newImage = (PImage) myMovie;
-    newImage.save("data/images/p_steps_"+ nextFrame +".jpg");
+    String imageName = "images/p_steps_"+ nextFrame +".jpg";
+    String ffmpegCommand = "ffmpeg -i " + InputVideoName + 
+    " -ss " + timeToFormatted((int) (nextFrame*1000)) + 
+    " -f image2 -vframes 1 " + imageName;
+   
+    createVideoScript.println(ffmpegCommand);  // create image from frame
+    //PImage newImage = (PImage) myMovie;
+    //newImage.save("data/images/p_steps_"+ nextFrame +".jpg");
     println("Step = " + step.m_sNote + ", time = " + nextFrame);
     
     if(i +1 < Steps.size()){
@@ -222,15 +221,33 @@ void renderImages() {
 
 void createScriptBlankVideo()
 {
-   String path = dataPath("") + "/blankVideo.mp4" ; 
+   String videoName = "blankVideo.mp4" ; 
+   println("Create script blank video ");
    
+   myMovie.read();
+   PImage newImage = (PImage) myMovie;
+   
+   float duration =  myMovie.duration();
+   duration = 10;
+   int frame_rate =  25;
+    
    //String ffmpegCommand = "ffmpeg -t 10 -s 640x480 -f lavfi -pix_fmt rgb24 -r 25 -i " + path;
-   String ffmpegCommand = "ffmpeg -t 10 -s 640x480 -f rawvideo -pix_fmt rgb24 -r 25 -i /dev/zero " + path;
+   String ffmpegCommand = "ffmpeg -t " + duration + 
+   " -s " + newImage.width + "x" + newImage.height + 
+   " -f rawvideo -pix_fmt rgb24 -r " + frame_rate +
+   " -i /dev/zero " + videoName;
    
    createVideoScript.print("\n");  // break code
-   createVideoScript.println("echo Creating blank video...");  // Echo creating blank video
+   createVideoScript.println("echo Creating blank video: size-> " + newImage.width + "x" + newImage.height
+   + ", duration-> " + duration + "s, frame rate -> " + frame_rate + "fps" );  // Echo creating blank video
+   createVideoScript.println("cd " + dataPath(""));  // create output folder
+   createVideoScript.println("mkdir output");
+   createVideoScript.println("cd output");  
    createVideoScript.print("\n");  // break code 
    createVideoScript.println(ffmpegCommand);  //  creating blank video 
+   
+   println("Creating blank video: size-> " + newImage.width + "x" + newImage.height
+   + ", duration-> " + duration + "s, frame rate -> " + frame_rate + "fps" );
 }
 // export filenames w/leading zeros
 void saveFile(int i, PImage image) {
@@ -263,4 +280,23 @@ void keyPressed() {
     println("App exit");
     exit(); // Stops the program
   }
+}
+
+
+String timeToFormatted(int timeInMiliSeconds) {
+       
+  int iHours =  timeInMiliSeconds/3600000;
+  String hours = nf(iHours,2);
+  
+  int iMinutes =  (timeInMiliSeconds%3600000)/60000;
+  String minutes = nf(iMinutes,2);
+  
+  int iSeconds =  (timeInMiliSeconds%60000)/1000;
+  String seconds = nf(iSeconds,2);
+  
+  int iMilliSeconds =  timeInMiliSeconds%1000;
+  String milliseconds = nf(iMilliSeconds,3);
+ 
+  String formattedTime = hours + ":" + minutes + ":" + seconds + "." + milliseconds ;
+  return formattedTime;
 }
