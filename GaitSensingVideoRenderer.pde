@@ -52,15 +52,16 @@ void setup() {
   loadMidiInfo();
   createVideo();
   saveFramesToImages();
- 
-  //noLoop(); // only draw once
+  closeBashScript();
+  exit();
+  noLoop(); // only draw once
 }
 
 void draw() {
   
   //background(255);
   
-  image(myMovie, 0, 0);
+  //image(myMovie, 0, 0);
 }
 
 void startBashScript(){
@@ -99,7 +100,7 @@ void createVideo() {
         myMovie.pause();
         myMovie.read();
         println("Video Duration: "+ myMovie.duration() + "s");
-        createScriptBlankVideo();
+        //createScriptBlankVideo();
     }
     else{
       println("Data folder has no mp4 format videos ");
@@ -195,26 +196,39 @@ void saveFramesToImages() {
   createVideoScript.println("cd " + dataPath(""));  // create output folder
   createVideoScript.println("mkdir images");
   
+  String blankVideoName = "output/blankVideo.mp4" ; 
+  String videoName = "output/excerpt.mp4" ; 
+  
   //for(int i=0; i<Steps.size();i++)
-  for(int i=0; i<10;i++)
+  for(int i=0; i<9;i++)
   { 
     Step step =(Step) Steps.get(i); 
     float nextFrame = step.m_fTime;
     String imageName = "images/p_steps_"+ nextFrame +".jpg";
     String ffmpegCommand = "ffmpeg -i " + InputVideoName + 
     " -ss " + timeToFormatted((int) (nextFrame*1000)) + 
-    " -f image2 -vframes 1 " + imageName;
+    " -f image2 -vframes 1 " + imageName + " -y";
    
     createVideoScript.println(ffmpegCommand);  // create image from frame
-    //PImage newImage = (PImage) myMovie;
-    //newImage.save("data/images/p_steps_"+ nextFrame +".jpg");
-    println("Step = " + step.m_sNote + ", time = " + nextFrame);
     
+//    ffmpegCommand = "ffmpeg -i " + blankVideoName + 
+//    " -i " + imageName + " -filter_complex" + 
+//    " \"[0:v][1:v]overlay=0:0:enable=between(t\\," + step.m_fTime + "\\," + str(step.m_fTime + step.m_fDuration) + ")\"" + 
+//    " -codec:a copy " + blankVideoName + " -y";
+
+    float duration = step.m_fTime + step.m_fDuration;
     if(i +1 < Steps.size()){
       Step nextStep =(Step) Steps.get(i+1); 
+      duration = nextStep.m_fTime - step.m_fTime;
     }
     
-    //saveFile(i++,newImage);
+    videoName = "output/excerpt" + i +".mp4" ; 
+    
+    ffmpegCommand = "ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+    " -r " + fps + " -t " + duration + " " + videoName + " -y";
+       
+    createVideoScript.println(ffmpegCommand);  // create a video from the image
+   
   }
   
 }
@@ -268,19 +282,23 @@ void movieEvent(Movie m) {
 }
 
 void stop() { //it is called whenever a sketch is closed. 
-   createVideoScript.flush(); // Writes the remaining data to the file
-   createVideoScript.close(); // Finishes the file
+   closeBashScript();
    println("App stopped");
 } 
 
 void keyPressed() {
   if (key == ESC) {
-    createVideoScript.flush(); // Writes the remaining data to the file
-    createVideoScript.close(); // Finishes the file
+    closeBashScript();
     println("App exit");
     exit(); // Stops the program
   }
 }
+
+void closeBashScript() { 
+   createVideoScript.flush(); // Writes the remaining data to the file
+   createVideoScript.close(); // Finishes the file
+   println("Close Video Bash Script");
+} 
 
 
 String timeToFormatted(int timeInMiliSeconds) {
