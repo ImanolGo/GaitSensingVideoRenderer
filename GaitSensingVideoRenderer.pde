@@ -48,7 +48,8 @@ void setup() {
   
   startBashScript();
   loadMidiInfo();
-  loadVideo();
+  createVideo();
+  
   //renderImages();
   
   //noLoop(); // only draw once
@@ -89,7 +90,7 @@ void loadMidiInfo() {
     loadSteps();
 }
 
-void loadVideo() {
+void createVideo() {
    
     java.io.File folder = new java.io.File(dataPath(""));             
     java.io.FilenameFilter mp4Filter = new java.io.FilenameFilter() {  
@@ -108,14 +109,14 @@ void loadVideo() {
         println("Loading " + videoName + "....");
         myMovie = new Movie(this, path);   
         myMovie.play();
-        println("Video Duration: "+ myMovie.duration() + "s"); 
+        println("Video Duration: "+ myMovie.duration() + "s");
+        createScriptBlankVideo();
     }
     else{
       println("Data folder has no mp4 format videos ");
     }
   
 }
-
 
 void loadNotes() {
    
@@ -219,6 +220,18 @@ void renderImages() {
   
 }
 
+void createScriptBlankVideo()
+{
+   String path = dataPath("") + "/blankVideo.mp4" ; 
+   
+   //String ffmpegCommand = "ffmpeg -t 10 -s 640x480 -f lavfi -pix_fmt rgb24 -r 25 -i " + path;
+   String ffmpegCommand = "ffmpeg -t 10 -s 640x480 -f rawvideo -pix_fmt rgb24 -r 25 -i /dev/zero " + path;
+   
+   createVideoScript.print("\n");  // break code
+   createVideoScript.println("echo Creating blank video...");  // Echo creating blank video
+   createVideoScript.print("\n");  // break code 
+   createVideoScript.println(ffmpegCommand);  //  creating blank video 
+}
 // export filenames w/leading zeros
 void saveFile(int i, PImage image) {
   String istr = i+"";
