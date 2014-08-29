@@ -20,7 +20,7 @@ import java.util.Set;
 import processing.video.*;
 Movie myMovie;
 int lastFrame = 0;
-int fps = 5;
+int fps = 25;
 PrintWriter createVideoScript;
 
 ArrayList Notes_;
@@ -200,6 +200,7 @@ void saveFramesToImages() {
   String videoName = "output/excerpt.mp4" ; 
   
   //for(int i=0; i<Steps.size();i++)
+  int excerptNumber = 0;
   for(int i=0; i<9;i++)
   { 
     Step step =(Step) Steps.get(i); 
@@ -222,13 +223,13 @@ void saveFramesToImages() {
       duration = nextStep.m_fTime - step.m_fTime;
     }
     
-    videoName = "output/excerpt" + i +".mp4" ; 
-    
-    ffmpegCommand = "ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
-    " -r " + fps + " -t " + duration + " " + videoName + " -y";
-       
-    createVideoScript.println(ffmpegCommand);  // create a video from the image
-   
+    if(duration>0){
+       videoName = "output/excerpt" + excerptNumber +".mp4" ; 
+       ffmpegCommand = "ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+       " -r " + fps + " -t " + duration + " " + videoName + " -y";
+       createVideoScript.println(ffmpegCommand);  // create a video from the image
+       excerptNumber++;
+    }
   }
   
 }
