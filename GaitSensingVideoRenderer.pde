@@ -5,7 +5,7 @@
   *    Berlin 16/09/14
   *    by Imanol Gómez 
   *    www.imanolgomez.net
-  *    version 1.2 
+  *    version 1.3 
   * 
 */
 
@@ -21,7 +21,7 @@ import java.io.InputStreamReader;
 import processing.video.*;
 Movie myMovie;
 int lastFrame = 0;
-int fps = 60;
+int fps = 25;
 PrintWriter createVideoScript;
 
 ArrayList Notes_;
@@ -60,7 +60,7 @@ void setup() {
   saveFramesToVideos();
   concatenateVideos();
   deleteJunkFiles();
-  addSoundToVideo();
+  //addSoundToVideo();
   
   println("END\n");
   println("---------------------------------------------\n");
@@ -83,7 +83,8 @@ void loadMidiInfo() {
 
 void saveFramesToVideos() {
   
-  PrintWriter mylist = createWriter("data/output/mylist.txt"); 
+  PrintWriter mylist = createWriter("data/output/mylist.txt");
+  PrintWriter outputVideos = createWriter("data/outputVideos.txt"); 
   mylist.println("# this is a comment"); 
   
   println("Save frames to images... ");
@@ -94,12 +95,38 @@ void saveFramesToVideos() {
   
   String videoName = "data/output/excerpt.mp4" ; 
   String inputVideoPath = "data/" +  InputVideoName; 
-  
-  //for(int i=0; i<Steps.size();i++)
   int excerptNumber = 0;
-  for(int i=0; i<Steps.size();i++)
+  
+  //Create first frame
+  int frameNumber  = 0;
+  if(Steps.size()>0){
+      println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
+      Step step =(Step) Steps.get(0);
+      if(step.m_fTime>0){
+        String imageName = "data/images/p_steps_0.jpg";
+        String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + inputVideoPath + 
+        " -ss " + timeToFormatted((int) (0)) + 
+        " -f image2 -vframes 1 " + imageName + " -n"; 
+        
+        runCommand(ffmpegCommand);  // create image from frame
+        
+        float duration = step.m_fTime;
+        videoName = "data/output/excerpt" + excerptNumber + ".mp4" ;  
+        ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+        " -r " + fps + " -t " + duration + " " + videoName + " -n";
+        runCommand(ffmpegCommand);  // create a video from the image
+        mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
+        
+        outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: 00:00:00.000" + ", End: " + duration);
+             
+        excerptNumber++;
+       
+      }
+  }
+  
+  for(int i=0; i<Steps.size()-1;i++)
   { 
-    int frameNumber  = i + 1;
+    frameNumber  = i + 1;
     println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
     
     Step step =(Step) Steps.get(i); 
@@ -112,10 +139,8 @@ void saveFramesToVideos() {
     runCommand(ffmpegCommand);  // create image from frame
 
     float duration = step.m_fTime + step.m_fDuration;
-    if(i +1 < Steps.size()){ 
-      Step nextStep =(Step) Steps.get(i+1); 
-      duration = nextStep.m_fTime - step.m_fTime;
-    }
+    Step nextStep =(Step) Steps.get(i+1); 
+    duration = nextStep.m_fTime - step.m_fTime;
     
     if(duration>0){
       
@@ -125,13 +150,47 @@ void saveFramesToVideos() {
        " -r " + fps + " -t " + duration + " " + videoName + " -n";
        runCommand(ffmpegCommand);  // create a video from the image
        mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
+       
+       outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
              
-       excerptNumber++;
+       excerptNumber++; 
     }
   }
   
+    //Create last frame
+    frameNumber  = Steps.size();
+    println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
+    
+    Step step =(Step) Steps.get(Steps.size()-1); 
+    float newFrame = step.m_fTime;
+    String imageName = "data/images/p_steps_"+ newFrame +".jpg";
+    String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + inputVideoPath + 
+    " -ss " + timeToFormatted((int) (newFrame*1000)) + 
+    " -f image2 -vframes 1 " + imageName + " -n";
+     
+    runCommand(ffmpegCommand);  // create image from frame
+    
+    
+    float duration = myMovie.duration() - step.m_fTime;    
+    if(duration>0){
+    
+     videoName = "data/output/excerpt" + excerptNumber + ".mp4" ; 
+     
+     ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+     " -r " + fps + " -t " + duration + " " + videoName + " -n";
+     runCommand(ffmpegCommand);  // create a video from the image
+     mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
+     
+     outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
+           
+     excerptNumber++; 
+    }
+  
+  
   mylist.flush(); // Writes the remaining data to the file
   mylist.close(); // Finishes the file
+  outputVideos.flush(); // Writes the remaining data to the file
+  outputVideos.close(); // Finishes the file
   
 }
 
@@ -339,12 +398,14 @@ void loadSteps() {
 
 void addSoundToVideo()
 {
+   loadSound();
+   
    String dataPath = dataPath("");
    String path = dataPath("") + "/" + InputSoundName;
     
     runCommand("echo add sound to video ...");  // Add sound to videos
     
-    String command =  "/usr/local/bin/ffmpeg -i output.mp4 -i " + path + " -c:v copy -c:a aac -strict experimental output.mp4";
+    String command =  "/usr/local/bin/ffmpeg -i output.mp4 -i " + path + " -c:v copy -c:a aac -strict experimental outputSound.mp4";
     runCommand(command,dataPath);  
 }
 
@@ -400,13 +461,15 @@ void loadVideo() {
 void loadSound() {
    
     java.io.File folder = new java.io.File(dataPath(""));             
-    java.io.FilenameFilter mp4Filter = new java.io.FilenameFilter() {  
+    java.io.FilenameFilter audioFilter = new java.io.FilenameFilter() {  
       public boolean accept(File dir, String name) {
-        return name.toLowerCase().endsWith(".aiff");
+        return (name.toLowerCase().endsWith(".aif") ||
+                name.toLowerCase().endsWith(".aiff") ||
+                name.toLowerCase().endsWith(".mp3"));
       }
     };
   
-    String[] filenames = folder.list(mp4Filter);
+    String[] filenames = folder.list(audioFilter);
     println("Sound inside the data folder: ");
     println(filenames);
     
@@ -425,10 +488,21 @@ void loadSound() {
 void createBlackImage()
 {
     PImage img = createImage(myMovie.width, myMovie.height, RGB);
+    String imageName = "data/images/blackImage.jpg";
+    String videoName = "data/output/blank.mp4";
+    
     img.loadPixels();
     for (int i = 0; i < img.pixels.length; i++) {
       img.pixels[i] = color(0, 0, 0); 
     }
     img.updatePixels();
-    img.save("data/images/blackImage.jpg");
+    img.save(imageName);
+    
+    runCommand("mkdir " + dataPath("") + "/output");
+    runCommand("echo add sound to video ...");  // Add sound to videos
+    
+    String ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+     " -r " + fps + " -t " + myMovie.duration() + " " + videoName + " -n";
+    
+    runCommand(ffmpegCommand);  // create a blank video
 }
