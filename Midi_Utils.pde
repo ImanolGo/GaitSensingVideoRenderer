@@ -71,7 +71,7 @@ float getMidiDuration(String fileName)
 
   
   long microsends = midiSequence.getMicrosecondLength();
- // println(microsends);
+  //println(microsends);
   //println(2.0*microsends/1000000.0);
   return 2.0*microsends/1000000;
 }
@@ -107,7 +107,7 @@ ArrayList loadMidi(String fileName, float fBPM)
     return null;
   }
 
-  
+   
   Track[] midiTracks = midiSequence.getTracks();  
   Track midiTrack = midiTracks[0];
   
@@ -184,7 +184,7 @@ ArrayList loadMidi(String fileName, float fBPM)
   
   String linesArray[] = new String[lines.size()];
   linesArray = (String[]) lines.toArray(linesArray);
-  saveStrings("notes.txt", linesArray);
+  saveStrings("data/notes.txt", linesArray);
   return myNotes;
   
 }
