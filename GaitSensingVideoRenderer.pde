@@ -5,7 +5,7 @@
   *    Berlin 18/09/14
   *    by Imanol Gómez 
   *    www.imanolgomez.net
-  *    version 2.0 
+  *    version 2.1 
   * 
 */
 
@@ -109,10 +109,10 @@ void saveFramesToVideos() {
         runCommand(ffmpegCommand);  // create image from frame
     
         float duration = step.m_fTime;    
-        String ;
         String creatingExcerptText = "Excerpt" + excerptNumber + ".mp4 -> Start: 00:00:00.000" + ", End: " + duration;
         outputVideos.println(creatingExcerptText);
-        runInsertImageCommand(imageName, 0, duration);
+        println(creatingExcerptText);
+        runInsertImageCommand(excerptNumber, imageName, 0, duration);
              
         excerptNumber++;
           
@@ -138,15 +138,12 @@ void saveFramesToVideos() {
     
     if(duration>0){
              
-        ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
-          " -i " + imageName + " -filter_complex " + 
-          "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ step.m_fTime + "," + (step.m_fTime+duration) + ")\'\"" + 
-          " " + outputVideoPath + " -y";
-        
-       runCommand(ffmpegCommand);  // create a video from the image       
-       outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
-             
-       excerptNumber++; 
+      String creatingExcerptText = "Excerpt" + excerptNumber + ".mp4 -> Start:  " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration)));
+      outputVideos.println(creatingExcerptText);
+      println(creatingExcerptText);
+      runInsertImageCommand(excerptNumber, imageName, step.m_fTime, step.m_fTime+duration);      
+     
+      excerptNumber++; 
     }
   }
   
@@ -166,17 +163,13 @@ void saveFramesToVideos() {
     
     float duration = myMovie.duration() - step.m_fTime;    
     if(duration>0){
-     
-     ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
-        " -i " + imageName + " -filter_complex " + 
-        "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ step.m_fTime + "," + (step.m_fTime+duration) + ")\'\"" + 
-        " " + outputVideoPath + " -y";
-        
-     runCommand(ffmpegCommand);  // create a video from the image
-     
-     outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
-           
-     excerptNumber++; 
+      String creatingExcerptText = "Excerpt" + excerptNumber + ".mp4 -> Start:  " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration)));
+      outputVideos.println(creatingExcerptText);
+      println(creatingExcerptText);
+      runInsertImageCommand(excerptNumber,imageName, step.m_fTime, step.m_fTime+duration);
+      String command = "mv data/output/output" + excerptNumber + ".mp4" + " data/output/output.mp4";
+      runCommand(command);  // run rename command
+      excerptNumber++; 
     }
   
   
@@ -304,7 +297,7 @@ void joinSoundAndVideo()
 {
     String audioPath = dataPath("") + "/" + InputSoundName;
     String outputVideoPath = dataPath("") + "/output/output.mp4";
-    String outputAudioVideoPath = dataPath("") + "/output/outputAudio,mp4";
+    String outputAudioVideoPath = dataPath("") + "/output/outputAudio.mp4";
     
     runCommand("echo add sound to video ...");  // Add sound to videos
       
@@ -389,14 +382,19 @@ void loadSound() {
   
 }
 
-void runInsertImageCommand(String imagePath, float startTime, float endTime) {
+void runInsertImageCommand(int excerptNum, String imagePath, float startTime, float endTime) {
     
-     String outputVideoPath = "data/output/output.mp4";
+     String outputVideoPath = "data/output/output" + excerptNum + ".mp4";
+     String inputVideoPath = "data/output/output" + (excerptNum-1) + ".mp4";
+     if(excerptNum==0){
+        inputVideoPath = "data/output/output.mp4" ;
+     }
+ 
      
-     String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
+     String ffmpegCommand = "/usr/local/bin/ffmpeg -y -i " + inputVideoPath +
         " -i " + imagePath + " -filter_complex " + 
         "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ startTime + "," + endTime + ")\'\"" + 
-        " " + outputVideoPath + " -y";
+        " " + outputVideoPath;
        
        PrintWriter outputScript = createWriter("data/scripts/insertImageScript.sh");
        String creatingExcerptText = "Creating excerpt, start->  " + startTime + "s, end-> " + endTime;
@@ -405,11 +403,13 @@ void runInsertImageCommand(String imagePath, float startTime, float endTime) {
        String command = "cd " + sketchPath("");
        outputScript.println(command);
        outputScript.println(ffmpegCommand);
+       outputScript.println(ffmpegCommand);  
        outputScript.flush(); // Writes the remaining data to the file
        outputScript.close(); // Finishes the file
        
+       command = "rm " + inputVideoPath;
        runCommand("sh data/scripts/insertImageScript.sh");
-                
+       runCommand(command);    
 }
 
 void createBlankVideo()
