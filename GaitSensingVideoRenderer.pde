@@ -34,8 +34,8 @@ float MidiDuration;
 PFont fontA;
 float tempo = 60;
 
-int numberOfSteps = 5;
-float durationOfEachStep = 2;
+public int numberOfSteps = 5;
+public float durationOfEachStep = 2;
 int excerptNumber = 0;
 
 String InputVideoName;
@@ -106,32 +106,19 @@ void saveFramesToVideos() {
   //Create first frame
   excerptNumber = 0;
   int frameNumber  = 0;
-  int elapsedSteps  = 0;
-//  if(Steps.size()>0){
-//      println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
-//      Step step =(Step) Steps.get(0);
-//      if(step.m_fTime>0){
-//        float extractTime = 0.0f;
-//        extractImage(extractTime);
-//        insertImage(0.0,step.m_fTime);     
-//        excerptNumber++;
-//        elapsedSteps = (elapsedSteps+1)%numberOfSteps;
-//          
-//      }
-//    }
-  
-    for(int i=0; i<Steps.size();i++)
-    { 
-      if(elapsedSteps==0){
-         extractImage(i);
-         insertImage(i);
-         excerptNumber++; 
-      }    
-       elapsedSteps = (elapsedSteps+1)%numberOfSteps;
-    }
-  
-    outputVideos.flush(); // Writes the remaining data to the file
-    outputVideos.close(); // Finishes the file
+  int elapsedSteps  = 0;  
+  for(int i=0; i<Steps.size();i++)
+  { 
+    if(elapsedSteps==0){
+       extractImage(i);
+       insertImage(i);
+       excerptNumber++; 
+    }    
+     elapsedSteps = (elapsedSteps+1)%numberOfSteps;
+  }
+
+  outputVideos.flush(); // Writes the remaining data to the file
+  outputVideos.close(); // Finishes the file
   
 }
 
@@ -154,6 +141,7 @@ void setupGui() {
   
   controlP5.addNumberbox("Number",numberOfSteps,50,50,80,30).setId(1);
   controlP5.addNumberbox("Duration",durationOfEachStep,200,50,80,30).setId(2);
+  controlP5.addButton("buttonStart",0,50,250,80,30);
   
   String textInfo = "Number of steps: " + numberOfSteps + "\n\n" +
                     "Duration of each step: " + durationOfEachStep + "s";
@@ -544,4 +532,27 @@ void runCommand(String commandToRun, String path) {
   // when done running command, quit
   //println("\n---------------------------------------------");
   //println("DONE!");
+}
+
+public void controlEvent(ControlEvent theEvent) {
+  switch(theEvent.controller().id()) {
+    case(1):  // number of steps
+      numberOfSteps = (int)(theEvent.controller().value());
+      String textInfo = "Number of steps: " + numberOfSteps + "\n\n" +
+                      "Duration of each step: " + durationOfEachStep + "s";
+      textlabelInfo.setValueLabel(textInfo);             
+      break;  
+    
+    case(2):  // Duration of each step
+      durationOfEachStep = (float)(theEvent.controller().value()) / 10.00;
+      String textInfo2 = "Number of steps: " + numberOfSteps + "\n\n" +
+                      "Duration of each step: " + durationOfEachStep + "s";
+      textlabelInfo.setValueLabel(textInfo2);
+      break;  
+  }
+}
+
+
+public void buttonStart(int theValue) {
+  startRendering();
 }
