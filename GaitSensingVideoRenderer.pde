@@ -2,10 +2,10 @@
 
 /**
   * Gait Sensing Video Renderer
-  *    Berlin 16/09/14
+  *    Berlin 18/09/14
   *    by Imanol Gómez 
   *    www.imanolgomez.net
-  *    version 1.3 
+  *    version 2.0 
   * 
 */
 
@@ -19,26 +19,22 @@ import java.util.Set;
 import java.io.InputStreamReader;
 
 import processing.video.*;
+
 Movie myMovie;
-int lastFrame = 0;
 int fps = 25;
-PrintWriter createVideoScript;
 
 ArrayList Notes_;
 ArrayList Steps;
 float MidiDuration;
 PFont fontA;
 float tempo = 60;
-int spm = 60; //seconds per minute
-ArrayList m_Durations = new ArrayList();
-ArrayList lines = new ArrayList();
+
+float numberOfSteps = 1;
+float durationOfEachStep = 5;
 
 String InputVideoName;
 String InputSoundName;
 
-String scriptName = "createVideo.sh";
-
-//name of the file
 
 class Step
 {
@@ -50,17 +46,15 @@ class Step
 
 void setup() {
   size(400, 400);
-  frameRate(fps);
   
   println("---------------------------------------------\n");
   println("Processing videos...\nPlease be patient, it will take some time...\n");
   
   loadMidiInfo();
-  loadVideo();
+  initializeVideo();
   saveFramesToVideos();
-  concatenateVideos();
   deleteJunkFiles();
-  //addSoundToVideo();
+  addSoundToVideo();
   
   println("END\n");
   println("---------------------------------------------\n");
@@ -81,11 +75,15 @@ void loadMidiInfo() {
     loadSteps();
 }
 
+void initializeVideo(){
+    if(loadVideo()){
+      createBlankVideo();
+    }
+}
+
 void saveFramesToVideos() {
   
-  PrintWriter mylist = createWriter("data/output/mylist.txt");
-  PrintWriter outputVideos = createWriter("data/outputVideos.txt"); 
-  mylist.println("# this is a comment"); 
+  PrintWriter outputVideos = createWriter("data/logFiles/outputVideos.txt"); 
   
   println("Save frames to images... ");
   
@@ -93,11 +91,11 @@ void saveFramesToVideos() {
   runCommand("mkdir " + dataPath("") + "/images");
   runCommand("mkdir " + dataPath("") + "/output");
   
-  String videoName = "data/output/excerpt.mp4" ; 
   String inputVideoPath = "data/" +  InputVideoName; 
-  int excerptNumber = 0;
+  String outputVideoPath = "data/output/output.mp4";
   
   //Create first frame
+  int excerptNumber = 0;
   int frameNumber  = 0;
   if(Steps.size()>0){
       println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
@@ -105,22 +103,19 @@ void saveFramesToVideos() {
       if(step.m_fTime>0){
         String imageName = "data/images/p_steps_0.jpg";
         String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + inputVideoPath + 
-        " -ss " + timeToFormatted((int) (0)) + 
-        " -f image2 -vframes 1 " + imageName + " -n"; 
+          " -ss " + timeToFormatted((int) (0)) + 
+          " -f image2 -vframes 1 " + imageName + " -n"; 
         
         runCommand(ffmpegCommand);  // create image from frame
-        
-        float duration = step.m_fTime;
-        videoName = "data/output/excerpt" + excerptNumber + ".mp4" ;  
-        ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
-        " -r " + fps + " -t " + duration + " " + videoName + " -n";
-        runCommand(ffmpegCommand);  // create a video from the image
-        mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
-        
-        outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: 00:00:00.000" + ", End: " + duration);
+    
+        float duration = step.m_fTime;    
+        String ;
+        String creatingExcerptText = "Excerpt" + excerptNumber + ".mp4 -> Start: 00:00:00.000" + ", End: " + duration;
+        outputVideos.println(creatingExcerptText);
+        runInsertImageCommand(imageName, 0, duration);
              
         excerptNumber++;
-       
+          
       }
   }
   
@@ -133,24 +128,22 @@ void saveFramesToVideos() {
     float nextFrame = step.m_fTime;
     String imageName = "data/images/p_steps_"+ nextFrame +".jpg";
     String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + inputVideoPath + 
-    " -ss " + timeToFormatted((int) (nextFrame*1000)) + 
-    " -f image2 -vframes 1 " + imageName + " -n";
+      " -ss " + timeToFormatted((int) (nextFrame*1000)) + 
+      " -f image2 -vframes 1 " + imageName + " -n";
    
     runCommand(ffmpegCommand);  // create image from frame
 
-    float duration = step.m_fTime + step.m_fDuration;
     Step nextStep =(Step) Steps.get(i+1); 
-    duration = nextStep.m_fTime - step.m_fTime;
+    float duration = nextStep.m_fTime - step.m_fTime;
     
     if(duration>0){
-      
-       videoName = "data/output/excerpt" + excerptNumber + ".mp4" ; 
-       
-       ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
-       " -r " + fps + " -t " + duration + " " + videoName + " -n";
-       runCommand(ffmpegCommand);  // create a video from the image
-       mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
-       
+             
+        ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
+          " -i " + imageName + " -filter_complex " + 
+          "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ step.m_fTime + "," + (step.m_fTime+duration) + ")\'\"" + 
+          " " + outputVideoPath + " -y";
+        
+       runCommand(ffmpegCommand);  // create a video from the image       
        outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
              
        excerptNumber++; 
@@ -173,13 +166,13 @@ void saveFramesToVideos() {
     
     float duration = myMovie.duration() - step.m_fTime;    
     if(duration>0){
-    
-     videoName = "data/output/excerpt" + excerptNumber + ".mp4" ; 
      
-     ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
-     " -r " + fps + " -t " + duration + " " + videoName + " -n";
+     ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
+        " -i " + imageName + " -filter_complex " + 
+        "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ step.m_fTime + "," + (step.m_fTime+duration) + ")\'\"" + 
+        " " + outputVideoPath + " -y";
+        
      runCommand(ffmpegCommand);  // create a video from the image
-     mylist.println("file 'excerpt" + excerptNumber + ".mp4'"); 
      
      outputVideos.println("excerpt" + excerptNumber + ".mp4 -> Start: " + timeToFormatted((int)(1000*step.m_fTime)) + ", End: " + timeToFormatted((int)(1000*(step.m_fTime+duration))));
            
@@ -187,41 +180,260 @@ void saveFramesToVideos() {
     }
   
   
-  mylist.flush(); // Writes the remaining data to the file
-  mylist.close(); // Finishes the file
   outputVideos.flush(); // Writes the remaining data to the file
   outputVideos.close(); // Finishes the file
   
 }
 
-void concatenateVideos() 
-{
-    String outputPath = dataPath("") + "/output/";
-    
-    runCommand("echo Concatenate videos ...");  // Echo Create concating videos list 
-    
-//    String command =  "for f in ./*.mp4; do echo \"file \'$f\'\" >> mylist.txt; done";
-//    runCommand(command,outputPath);
-    
-    String command =  "/usr/local/bin/ffmpeg -f concat -i mylist.txt -c copy output.mp4 -y";
-    runCommand(command,outputPath);
-    
-//    command =  "/usr/local/bin/ffmpeg -i output.mp4  -c copy -bsf:v h264_mp4toannexb -f mpegts intermediate1.ts -n";
-//    runCommand(command,outputPath);
-//    
-//    command =  "/usr/local/bin/ffmpeg -i excerpt.mp4  -c copy -bsf:v h264_mp4toannexb -f mpegts intermediate2.ts";
-//    runCommand(command,outputPath);
-//    
-//    command =  "/usr/local/bin/ffmpeg -i \"concat:intermediate1.ts|intermediate2.ts\" -c copy -bsf:a aac_adtstoasc output.mp4";
-//    runCommand(command,outputPath);
-  
-    
-//    runCommand("mkfifo data/output/temp1 data/output/temp2");  // 
-//    String commannd = "/usr/local/bin/ffmpeg -i data/output/excerpt.mp4 -c copy -bsf:v h264_mp4toannexb -f mpegts data/output/temp1 2> /dev/null & \\"+
-//    "/usr/local/bin/ffmpeg -i data/output/output.mp4 -c copy -bsf:v h264_mp4toannexb -f mpegts data/output/temp2 2> /dev/null & \\" +
-//    "/usr/local/bin/ffmpeg -f mpegts -i \"concat:data/output/temp1|data/output/temp2\" -c copy -bsf:a aac_adtstoasc data/output/output.mp4";
-   
+
+
+
+// Called every time a new frame is available to read
+void movieEvent(Movie m) {
+  m.read();
 }
+
+void keyPressed() {
+  if (key == ESC) {
+    println("App exit");
+    exit(); // Stops the program
+  }
+}
+
+void deleteJunkFiles() { 
+   
+   String outputPath = dataPath("") + "/output";
+  
+   println("Delete Junk Files");
+   
+   //runCommand("echo Moving output ...");  // Deleting junk files ... 
+   //runCommand("mv -f " +  outputPath + "/output.mp4 " + dataPath("")); //move output file
+   
+   runCommand("echo Deleting junk files ...");  // Deleting junk files ... 
+   runCommand("rm -r " +  dataPath("") + "/images"); //remove all images
+   //runCommand("rm -r " +  dataPath("") + "/output"); //remove all starting with excerpt
+   
+} 
+
+void loadNotes() {
+   
+    java.io.File folder = new java.io.File(dataPath(""));             
+    java.io.FilenameFilter midiFilter = new java.io.FilenameFilter() {  
+      public boolean accept(File dir, String name) {
+        return name.toLowerCase().endsWith(".mid");
+      }
+    };
+  
+    String[] filenames = folder.list(midiFilter);
+    println("Midi files inside the data folder: ");
+    println(filenames);
+    
+    if(filenames.length>0){
+      Notes_ = new ArrayList();  // Create an empty ArrayList
+      String midiFileName = filenames[0]; 
+      String path = dataPath("") + "/" + midiFileName;
+      println("Loading " + midiFileName + "...."); 
+      println("Midi Duration: " + getMidiDuration(path) + "s" ); 
+      Notes_ = loadMidi(path ,tempo);
+      MidiDuration = getMidiDuration(path);
+      println("MidiDuration: "+ MidiDuration + "s");
+    }else { 
+      println("Data folder has no midi format files ");
+    } 
+      
+}
+
+void loadSteps() {
+ 
+    PrintWriter outputSteps = createWriter("data/logFiles/steps.txt");
+    Steps = new ArrayList();  // Create an empty ArrayList
+    Map<String,Step> mpSteps=new HashMap<String, Step>();
+    
+    for(int i=0; i<Notes_.size();i++)
+    {  
+       Note note =(Note) Notes_.get(i);
+        
+        if(!mpSteps.containsKey(note.m_sNote)){
+           if(note.m_on){
+              Step step = new Step();
+              step.m_fTime = note.m_fTime;
+              step.m_sNote = note.m_sNote;
+              step.m_fDuration = 0.0;  
+              mpSteps.put(note.m_sNote, step);
+           }
+            
+        }
+        else{
+          if(note.m_on)
+          {
+             Step step = mpSteps.get(note.m_sNote);
+             step.m_fTime = note.m_fTime;
+             mpSteps.put(note.m_sNote,step);
+          }
+          else{
+             Step step = mpSteps.get(note.m_sNote);
+             step.m_fDuration += note.m_fTime - step.m_fTime;
+             mpSteps.put(note.m_sNote,step);
+             
+             Step s = new Step();
+             s.m_fTime = step.m_fTime;
+             s.m_fDuration = step.m_fDuration;
+             s.m_sNote = step.m_sNote;
+             Steps.add(s);
+             
+             outputSteps.println("Step " + Steps.size() + ": Note-> " + 
+             s.m_sNote + ", Sarting-> " + timeToFormatted((int)(s.m_fTime*1000)) + "s, Ending-> "
+             + timeToFormatted((int)(1000*(step.m_fTime+s.m_fDuration))) + "s"); // Write steps to the file
+          }
+        }
+        
+    }
+    
+     outputSteps.flush(); // Writes the remaining data to the file
+     outputSteps.close(); // Finishes the file
+}
+
+void addSoundToVideo()
+{
+   loadSound();
+   joinSoundAndVideo();
+  
+}
+
+void joinSoundAndVideo()
+{
+    String audioPath = dataPath("") + "/" + InputSoundName;
+    String outputVideoPath = dataPath("") + "/output/output.mp4";
+    String outputAudioVideoPath = dataPath("") + "/output/outputAudio,mp4";
+    
+    runCommand("echo add sound to video ...");  // Add sound to videos
+      
+    String command =  "/usr/local/bin/ffmpeg -i " +  outputVideoPath + " -i " + audioPath + " -c:v copy -c:a aac -strict experimental " + outputAudioVideoPath;
+    runCommand(command);  
+}
+
+String timeToFormatted(int timeInMiliSeconds) {
+
+  int iHours =  timeInMiliSeconds/3600000;
+  String hours = nf(iHours,2);
+
+  int iMinutes =  (timeInMiliSeconds%3600000)/60000;
+  String minutes = nf(iMinutes,2);
+
+  int iSeconds =  (timeInMiliSeconds%60000)/1000;
+  String seconds = nf(iSeconds,2);
+  
+  int iMilliSeconds =  timeInMiliSeconds%1000;
+  String milliseconds = nf(iMilliSeconds,3);
+  
+  String formattedTime = hours + ":" + minutes + ":" + seconds + "." + milliseconds;
+  
+  return formattedTime;
+}
+
+
+boolean loadVideo() {
+   
+    java.io.File folder = new java.io.File(dataPath(""));             
+    java.io.FilenameFilter mp4Filter = new java.io.FilenameFilter() {  
+      public boolean accept(File dir, String name) {
+        return name.toLowerCase().endsWith(".mp4");
+      }
+    };
+  
+    String[] filenames = folder.list(mp4Filter);
+    println("Videos inside the data folder: ");
+    println(filenames);
+    
+    if(filenames.length>0){
+        InputVideoName = filenames[0];
+        String path = dataPath("") + "/" + InputVideoName;
+        println("Loading " + InputVideoName + "....");
+        myMovie = new Movie(this, path);   
+        myMovie.play();
+        myMovie.pause();
+        myMovie.read();
+        println("Video Duration: "+ myMovie.duration() + "s");
+        return true;
+    }
+    else{
+      println("Data folder has no mp4 format videos ");
+      return false;
+    }
+}
+
+void loadSound() {
+   
+    java.io.File folder = new java.io.File(dataPath(""));             
+    java.io.FilenameFilter audioFilter = new java.io.FilenameFilter() {  
+      public boolean accept(File dir, String name) {
+        return (name.toLowerCase().endsWith(".aif") ||
+                name.toLowerCase().endsWith(".aiff") ||
+                name.toLowerCase().endsWith(".mp3"));
+      }
+    };
+  
+    String[] filenames = folder.list(audioFilter);
+    println("Sound inside the data folder: ");
+    println(filenames);
+    
+    if(filenames.length>0){
+        InputSoundName = filenames[0];
+        String path = dataPath("") + "/" + InputSoundName;
+        println("Loading " + InputSoundName + "....");
+        myMovie = new Movie(this, path);   
+    }
+    else{
+      println("Data folder has no sound format files ");
+    }
+  
+}
+
+void runInsertImageCommand(String imagePath, float startTime, float endTime) {
+    
+     String outputVideoPath = "data/output/output.mp4";
+     
+     String ffmpegCommand = "/usr/local/bin/ffmpeg -i " + outputVideoPath +
+        " -i " + imagePath + " -filter_complex " + 
+        "\"[0:v][1:v] overlay=0:0:enable=\'between(t,"+ startTime + "," + endTime + ")\'\"" + 
+        " " + outputVideoPath + " -y";
+       
+       PrintWriter outputScript = createWriter("data/scripts/insertImageScript.sh");
+       String creatingExcerptText = "Creating excerpt, start->  " + startTime + "s, end-> " + endTime;
+       //println(creatingExcerptText);
+       
+       String command = "cd " + sketchPath("");
+       outputScript.println(command);
+       outputScript.println(ffmpegCommand);
+       outputScript.flush(); // Writes the remaining data to the file
+       outputScript.close(); // Finishes the file
+       
+       runCommand("sh data/scripts/insertImageScript.sh");
+                
+}
+
+void createBlankVideo()
+{
+    PImage img = createImage(myMovie.width, myMovie.height, RGB);
+    String imageName = "data/images/blackImage.jpg";
+    String videoName = "data/output/output.mp4";
+    
+    img.loadPixels();
+    for (int i = 0; i < img.pixels.length; i++) {
+      img.pixels[i] = color(0, 0, 0); 
+    }
+    img.updatePixels();
+    img.save(imageName);
+    
+    runCommand("mkdir " + dataPath("") + "/output");
+    runCommand("echo create blank video ...");  // Add sound to videos
+    
+    String ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
+     " -r " + fps + " -t " + myMovie.duration() + " " + videoName + " -y";
+    
+    runCommand(ffmpegCommand);  // create a blank video
+}
+
 
 void runCommand(String commandToRun) {
       runCommand(commandToRun,sketchPath(""));
@@ -229,10 +441,6 @@ void runCommand(String commandToRun) {
 
 void runCommand(String commandToRun, String path) {
   
- 
-  // what command to run
-  //String commandToRun = "bash -x " + scriptName;
-
   File workingDir = new File(path);   // where to do it - should be full path
   String returnedValues;                        // value to return any results
 
@@ -286,223 +494,4 @@ void runCommand(String commandToRun, String path) {
   // when done running command, quit
   //println("\n---------------------------------------------");
   //println("DONE!");
-}
-
-
-// Called every time a new frame is available to read
-void movieEvent(Movie m) {
-  m.read();
-}
-
-void keyPressed() {
-  if (key == ESC) {
-    println("App exit");
-    exit(); // Stops the program
-  }
-}
-
-void deleteJunkFiles() { 
-   
-   String outputPath = dataPath("") + "/output";
-  
-   println("Delete Junk Files");
-   
-   runCommand("echo Moving output ...");  // Deleting junk files ... 
-   runCommand("mv -f " +  outputPath + "/output.mp4 " + dataPath("")); //move output file
-   
-   runCommand("echo Deleting junk files ...");  // Deleting junk files ... 
-   runCommand("rm -r " +  dataPath("") + "/images"); //remove all images
-   runCommand("rm -r " +  dataPath("") + "/output"); //remove all starting with excerpt
-   
-} 
-
-
-
-void loadNotes() {
-   
-    java.io.File folder = new java.io.File(dataPath(""));             
-    java.io.FilenameFilter midiFilter = new java.io.FilenameFilter() {  
-      public boolean accept(File dir, String name) {
-        return name.toLowerCase().endsWith(".mid");
-      }
-    };
-  
-    String[] filenames = folder.list(midiFilter);
-    println("Midi files inside the data folder: ");
-    println(filenames);
-    
-    if(filenames.length>0){
-      Notes_ = new ArrayList();  // Create an empty ArrayList
-      String midiFileName = filenames[0]; 
-      String path = dataPath("") + "/" + midiFileName;
-      println("Loading " + midiFileName + "...."); 
-      println("Midi Duration: " + getMidiDuration(path) + "s" ); 
-      Notes_ = loadMidi(path ,tempo);
-      MidiDuration = getMidiDuration(path);
-      println("MidiDuration: "+ MidiDuration + "s");
-    }else { 
-      println("Data folder has no midi format files ");
-    } 
-      
-}
-
-void loadSteps() {
- 
-    PrintWriter outputSteps = createWriter("data/steps.txt");
-    Steps = new ArrayList();  // Create an empty ArrayList
-    Map<String,Step> mpSteps=new HashMap<String, Step>();
-    
-    for(int i=0; i<Notes_.size();i++)
-    {  
-       Note note =(Note) Notes_.get(i);
-        
-        if(!mpSteps.containsKey(note.m_sNote)){
-           if(note.m_on){
-              Step step = new Step();
-              step.m_fTime = note.m_fTime;
-              step.m_sNote = note.m_sNote;
-              step.m_fDuration = 0.0;  
-              mpSteps.put(note.m_sNote, step);
-           }
-            
-        }
-        else{
-          if(note.m_on)
-          {
-             Step step = mpSteps.get(note.m_sNote);
-             step.m_fTime = note.m_fTime;
-             mpSteps.put(note.m_sNote,step);
-          }
-          else{
-             Step step = mpSteps.get(note.m_sNote);
-             step.m_fDuration += note.m_fTime - step.m_fTime;
-             mpSteps.put(note.m_sNote,step);
-             
-             Step s = new Step();
-             s.m_fTime = step.m_fTime;
-             s.m_fDuration = step.m_fDuration;
-             s.m_sNote = step.m_sNote;
-             Steps.add(s);
-             
-             outputSteps.println("Step " + Steps.size() + ": Note-> " + 
-             s.m_sNote + ", Sarting-> " + timeToFormatted((int)(s.m_fTime*1000)) + "s, Ending-> "
-             + timeToFormatted((int)(1000*(step.m_fTime+s.m_fDuration))) + "s"); // Write steps to the file
-          }
-        }
-        
-    }
-    
-     outputSteps.flush(); // Writes the remaining data to the file
-     outputSteps.close(); // Finishes the file
-}
-
-void addSoundToVideo()
-{
-   loadSound();
-   
-   String dataPath = dataPath("");
-   String path = dataPath("") + "/" + InputSoundName;
-    
-    runCommand("echo add sound to video ...");  // Add sound to videos
-    
-    String command =  "/usr/local/bin/ffmpeg -i output.mp4 -i " + path + " -c:v copy -c:a aac -strict experimental outputSound.mp4";
-    runCommand(command,dataPath);  
-}
-
-String timeToFormatted(int timeInMiliSeconds) {
-
-  int iHours =  timeInMiliSeconds/3600000;
-  String hours = nf(iHours,2);
-
-  int iMinutes =  (timeInMiliSeconds%3600000)/60000;
-  String minutes = nf(iMinutes,2);
-
-  int iSeconds =  (timeInMiliSeconds%60000)/1000;
-  String seconds = nf(iSeconds,2);
-  
-  int iMilliSeconds =  timeInMiliSeconds%1000;
-  String milliseconds = nf(iMilliSeconds,3);
-  
-  String formattedTime = hours + ":" + minutes + ":" + seconds + "." + milliseconds;
-  
-  return formattedTime;
-}
-
-
-void loadVideo() {
-   
-    java.io.File folder = new java.io.File(dataPath(""));             
-    java.io.FilenameFilter mp4Filter = new java.io.FilenameFilter() {  
-      public boolean accept(File dir, String name) {
-        return name.toLowerCase().endsWith(".mp4");
-      }
-    };
-  
-    String[] filenames = folder.list(mp4Filter);
-    println("Videos inside the data folder: ");
-    println(filenames);
-    
-    if(filenames.length>0){
-        InputVideoName = filenames[0];
-        String path = dataPath("") + "/" + InputVideoName;
-        println("Loading " + InputVideoName + "....");
-        myMovie = new Movie(this, path);   
-        myMovie.play();
-        myMovie.pause();
-        myMovie.read();
-        println("Video Duration: "+ myMovie.duration() + "s");
-        createBlackImage();
-    }
-    else{
-      println("Data folder has no mp4 format videos ");
-    }
-}
-
-void loadSound() {
-   
-    java.io.File folder = new java.io.File(dataPath(""));             
-    java.io.FilenameFilter audioFilter = new java.io.FilenameFilter() {  
-      public boolean accept(File dir, String name) {
-        return (name.toLowerCase().endsWith(".aif") ||
-                name.toLowerCase().endsWith(".aiff") ||
-                name.toLowerCase().endsWith(".mp3"));
-      }
-    };
-  
-    String[] filenames = folder.list(audioFilter);
-    println("Sound inside the data folder: ");
-    println(filenames);
-    
-    if(filenames.length>0){
-        InputSoundName = filenames[0];
-        String path = dataPath("") + "/" + InputSoundName;
-        println("Loading " + InputSoundName + "....");
-        myMovie = new Movie(this, path);   
-    }
-    else{
-      println("Data folder has no sound format files ");
-    }
-  
-}
-
-void createBlackImage()
-{
-    PImage img = createImage(myMovie.width, myMovie.height, RGB);
-    String imageName = "data/images/blackImage.jpg";
-    String videoName = "data/output/blank.mp4";
-    
-    img.loadPixels();
-    for (int i = 0; i < img.pixels.length; i++) {
-      img.pixels[i] = color(0, 0, 0); 
-    }
-    img.updatePixels();
-    img.save(imageName);
-    
-    runCommand("mkdir " + dataPath("") + "/output");
-    runCommand("echo add sound to video ...");  // Add sound to videos
-    
-    String ffmpegCommand = "/usr/local/bin/ffmpeg -loop 1 -f image2 -i " + imageName + " -c:v libx264 -pix_fmt yuv420p" +
-     " -r " + fps + " -t " + myMovie.duration() + " " + videoName + " -n";
-    
-    runCommand(ffmpegCommand);  // create a blank video
 }

@@ -168,7 +168,7 @@ ArrayList loadMidi(String fileName, float fBPM)
     
     float fTime = event.getTick() * fSPB / g_iTicksPerBeat;
     String line_ = "Note Off: " + Notes[iNote] + "-" + iOctave + " @" + fTime + "[" + event.getTick() + "]";
-    //println(line_);
+    ////println(ne_);
     lines.add(line_);
     
     Note n = new Note();
@@ -184,7 +184,7 @@ ArrayList loadMidi(String fileName, float fBPM)
   
   String linesArray[] = new String[lines.size()];
   linesArray = (String[]) lines.toArray(linesArray);
-  saveStrings("data/notes.txt", linesArray);
+  saveStrings("data/logFiles/notes.txt", linesArray);
   return myNotes;
   
 }
