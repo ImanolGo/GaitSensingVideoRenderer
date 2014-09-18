@@ -5,7 +5,7 @@
   *    Berlin 18/09/14
   *    by Imanol Gómez 
   *    www.imanolgomez.net
-  *    version 2.3
+  *    version 3.0
   * 
 */
 
@@ -19,6 +19,11 @@ import java.util.Set;
 import java.io.InputStreamReader;
 
 import processing.video.*;
+import controlP5.*;
+
+ControlP5 controlP5;
+Textlabel textlabelInfo;
+Textlabel textlabelProcess;
 
 Movie myMovie;
 int fps = 10;
@@ -46,8 +51,19 @@ class Step
 
 
 void setup() {
-  size(400, 400);
   
+  setupGui();
+  
+  //startRendering();
+}
+
+void draw() {
+  background(100);
+  //image(myMovie, 0, 0);
+}
+
+void startRendering()
+{
   println("---------------------------------------------\n");
   println("Processing videos...\nPlease be patient, it will take some time...\n");
   
@@ -60,14 +76,6 @@ void setup() {
   println("END\n");
   println("---------------------------------------------\n");
   
-  
-  exit();
-  noLoop(); // only draw once
-}
-
-void draw() {
-  
-  //image(myMovie, 0, 0);
 }
 
 void loadMidiInfo() {
@@ -137,6 +145,28 @@ void extractImage(float time)
         " -f image2 -vframes 1 " + imageName + " -n";
    
     runCommand(ffmpegCommand);  // create image from frame
+}
+void setupGui() {
+  size(380,230);
+  frameRate(25);
+  controlP5 = new ControlP5(this);
+  controlP5.setControlFont(new ControlFont(createFont("Georgia",15), 15));
+  
+  controlP5.addNumberbox("Number",numberOfSteps,50,50,80,30).setId(1);
+  controlP5.addNumberbox("Duration",durationOfEachStep,200,50,80,30).setId(2);
+  
+  String textInfo = "Number of steps: " + numberOfSteps + "\n\n" +
+                    "Duration of each step: " + durationOfEachStep + "s";
+                    
+  textlabelInfo = controlP5.addTextlabel("info",textInfo,50,120);
+  
+  textlabelProcess = controlP5.addTextlabel("process","SET PARAMETERS",50,170);
+   
+  controlP5.controller("Number").setMax(25);
+  controlP5.controller("Number").setMin(0);
+  
+  controlP5.controller("Duration").setMax(100);
+  controlP5.controller("Duration").setMin(0);
 }
 
 void extractImage(int stepIndex)
