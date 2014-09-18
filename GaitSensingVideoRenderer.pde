@@ -5,7 +5,7 @@
   *    Berlin 18/09/14
   *    by Imanol Gómez 
   *    www.imanolgomez.net
-  *    version 2.2
+  *    version 2.3
   * 
 */
 
@@ -29,8 +29,8 @@ float MidiDuration;
 PFont fontA;
 float tempo = 60;
 
-int numberOfSteps = 1;
-float durationOfEachStep = 5;
+int numberOfSteps = 5;
+float durationOfEachStep = 2;
 int excerptNumber = 0;
 
 String InputVideoName;
@@ -99,18 +99,18 @@ void saveFramesToVideos() {
   excerptNumber = 0;
   int frameNumber  = 0;
   int elapsedSteps  = 0;
-  if(Steps.size()>0){
-      println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
-      Step step =(Step) Steps.get(0);
-      if(step.m_fTime>0){
-        float extractTime = 0.0f;
-        extractImage(extractTime);
-        insertImage(0.0,step.m_fTime);     
-        excerptNumber++;
-        elapsedSteps = (elapsedSteps+1)%numberOfSteps;
-          
-      }
-    }
+//  if(Steps.size()>0){
+//      println("Saving frame ( " + frameNumber +" / "+ Steps.size() + ")");
+//      Step step =(Step) Steps.get(0);
+//      if(step.m_fTime>0){
+//        float extractTime = 0.0f;
+//        extractImage(extractTime);
+//        insertImage(0.0,step.m_fTime);     
+//        excerptNumber++;
+//        elapsedSteps = (elapsedSteps+1)%numberOfSteps;
+//          
+//      }
+//    }
   
     for(int i=0; i<Steps.size();i++)
     { 
@@ -169,15 +169,20 @@ void insertImage(float startTime, float endTime)
 void insertImage(int stepIndex)
 {
     Step currentStep =(Step) Steps.get(stepIndex);
-    
     int stepNumber  = stepIndex + 1; 
     float duration = 0.0;
-    if(stepNumber == Steps.size()){
+    if(stepNumber + numberOfSteps > Steps.size()){
         duration = myMovie.duration() - currentStep.m_fTime;
+        if(duration>durationOfEachStep){
+          duration = durationOfEachStep;
+        }
     }
     else{
-      Step nextStep =(Step) Steps.get(stepIndex+1);
+      Step nextStep =(Step) Steps.get(stepIndex+numberOfSteps);
       duration = nextStep.m_fTime - currentStep.m_fTime;
+      if(duration>durationOfEachStep){
+          duration = durationOfEachStep;
+       }
     }
     
     if(duration>0){
@@ -217,6 +222,7 @@ void deleteJunkFiles() {
    
    runCommand("echo Deleting junk files ...");  // Deleting junk files ... 
    runCommand("rm -r " +  dataPath("") + "/images"); //remove all images
+   runCommand("rm -r " +  dataPath("") + "/scripts"); //remove all scripts
    //runCommand("rm -r " +  dataPath("") + "/output"); //remove all starting with excerpt
    
 } 
